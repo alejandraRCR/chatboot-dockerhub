@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Bot Conversacional</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px; /* Añadir padding para evitar que el chat se pegue a los bordes en pantallas pequeñas */
+            box-sizing: border-box;
+        }
+
+        /* Estilos para el botón de abrir/cerrar chat */
+        .chat-toggle-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background-color: #4f46e5; /* Indigo 600 */
+            color: white;
+            border-radius: 9999px; /* Fully rounded */
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+
+        .chat-toggle-button:hover {
+            background-color: #4338ca; /* Indigo 700 */
+            transform: scale(1.05);
+        }
+
+        /* Estilos para la ventana del chat */
+        .chat-window {
+            position: fixed;
+            bottom: 90px; /* Ajustar para que no choque con el botón */
+            right: 20px;
+            width: 100%;
+            max-width: 380px;
+            height: 500px;
+            background-color: white;
+            border-radius: 1rem; /* Rounded corners */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: translateY(100%) scale(0.8); /* Inicialmente oculto y pequeño */
+            opacity: 0;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            z-index: 999;
+        }
+
+        .chat-window.open {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+
+        /* Área de mensajes */
+        .chat-messages {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            background-color: #eef2f6; /* Gray 100 */
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem; /* Espacio entre mensajes */
+        }
+
+        /* Estilos para mensajes individuales */
+        .message-bubble {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem; /* Rounded corners */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            word-wrap: break-word; /* Asegura que el texto largo se ajuste */
+        }
+
+        .user-message {
+            background-color: #4f46e5; /* Indigo 600 */
+            color: white;
+            align-self: flex-end; /* Alinear a la derecha */
+            border-bottom-right-radius: 0.25rem; /* Menos redondeado en una esquina */
+        }
+
+        .bot-message {
+            background-color: #ffffff; /* White */
+            color: #374151; /* Gray 700 */
+            align-self: flex-start; /* Alinear a la izquierda */
+            border-bottom-left-radius: 0.25rem; /* Menos redondeado en una esquina */
+        }
+
+        /* Indicador de carga (typing indicator) */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: #6b7280; /* Gray 500 */
+            font-style: italic;
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            align-self: flex-start;
+        }
+        .typing-indicator span {
+            animation: blink 1s infinite;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        /* Media queries para responsividad */
+        @media (max-width: 640px) {
+            .chat-window {
+                bottom: 0;
+                right: 0;
+                width: 100%;
+                max-width: 100%;
+                height: 100%;
+                border-radius: 0; /* Sin bordes redondeados en móvil para ocupar toda la pantalla */
+            }
+            .chat-toggle-button {
+                bottom: 10px;
+                right: 10px;
+                padding: 0.75rem;
+            }
+            body {
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenido ligero de la página (opcional) -->
+    <div class="text-center p-8 bg-white rounded-lg shadow-md max-w-lg mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">Bienvenido al Mini Bot Conversacional</h1>
+        <p class="text-gray-600 mb-6">Haz clic en el botón de chat en la esquina inferior derecha para empezar a conversar.</p>
+        <p class="text-sm text-gray-500">Este bot puede responder a preguntas sobre horarios, servicios y contacto.</p>
+    </div>
+
+    <!-- Botón de Cerrar Sesión (Logout) - Posicionado arriba a la izquierda -->
+    <button id="logoutButton" class="fixed top-4 left-4 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out z-50">
+        Cerrar Sesión
+    </button>
+
+    <!-- Botón para abrir/cerrar el chat -->
+    <button id="chatToggleButton" class="chat-toggle-button">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+        </svg>
+    </button>
+
+    <!-- Ventana del Chat -->
+    <div id="chatWindow" class="chat-window">
+        <!-- Encabezado del Chat -->
+        <div class="bg-indigo-600 text-white p-4 rounded-t-xl flex justify-between items-center shadow-md">
+            <h2 class="text-lg font-semibold">Mini Chatbot</h2>
+            <button id="closeChatButton" class="text-white hover:text-indigo-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Área de Mensajes -->
+        <div id="chatMessages" class="chat-messages">
+            <!-- Mensajes se añadirán aquí dinámicamente -->
+            <div class="message-bubble bot-message">
+                ¡Hola! Soy tu mini chatbot. ¿En qué puedo ayudarte hoy?
+            </div>
+        </div>
+
+        <!-- Área de Entrada de Mensajes -->
+        <div class="p-4 bg-white border-t border-gray-200 flex items-center">
+            <input type="text" id="userInput" placeholder="Escribe tu mensaje..."
+                   class="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mr-2">
+            <button id="sendButton"
+                    class="bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200 ease-in-out">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+
+        // --- VALIDACIÓN DE SESIÓN AL CARGAR LA PÁGINA ---
+        // Esta es la parte clave para validar la sesión
+        document.addEventListener('DOMContentLoaded', () => {
+            const authToken = localStorage.getItem('token'); // Asumiendo que el token se guarda como 'token'
+            const loggedInUser = localStorage.getItem('loggedInUser');
+
+            // Si no hay token o el usuario logueado no está presente, redirigir al login
+            if (!authToken || !loggedInUser) {
+                console.log('No se encontró token de autenticación o usuario logueado. Redirigiendo a login.html');
+                window.location.href = LOGIN_PAGE_URL;
+                return; // Detener la ejecución del script si no hay sesión
+            }
+
+            // Si la sesión es válida, actualizar el mensaje de bienvenida
+            const welcomeMessage = document.querySelector('.text-center h1'); 
+            if (welcomeMessage) {
+                welcomeMessage.textContent = `¡Hola, ${loggedInUser}!`; 
+            }
+            const subMessage = document.querySelector('.text-center p:first-of-type'); 
+            if (subMessage) {
+                subMessage.textContent = `Bienvenido de nuevo a nuestro Mini Bot Conversacional.`; 
+            }
+        });
+        // --- FIN VALIDACIÓN DE SESIÓN ---
+        // URL de tu microservicio Java. Asegúrate de que coincida con el puerto de tu backend.
+        const CHAT_API_URL = 'http://localhost:8090/api/virtual/'; // Cambia esto si tu backend está en otro puerto/dominio
+        const LOGIN_PAGE_URL = 'login.html'; // URL de tu página de login
+
+        const chatToggleButton = document.getElementById('chatToggleButton');
+        const chatWindow = document.getElementById('chatWindow');
+        const closeChatButton = document.getElementById('closeChatButton');
+        const chatMessages = document.getElementById('chatMessages');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const logoutButton = document.getElementById('logoutButton'); // Referencia al botón de logout
+
+        let isChatOpen = false;
+        let isTyping = false; 
+
+        function toggleChat() {
+            isChatOpen = !isChatOpen;
+            if (isChatOpen) {
+                chatWindow.classList.add('open');
+                userInput.focus(); 
+            } else {
+                chatWindow.classList.remove('open');
+            }
+        }
+
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message-bubble');
+            if (sender === 'user') {
+                messageDiv.classList.add('user-message');
+            } else {
+                messageDiv.classList.add('bot-message');
+            }
+            messageDiv.textContent = text;
+            chatMessages.appendChild(messageDiv);
+           
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            if (isTyping) return; 
+            isTyping = true;
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'typingIndicator';
+            typingDiv.classList.add('typing-indicator');
+            typingDiv.innerHTML = 'Bot escribiendo<span>.</span><span>.</span><span>.</span>';
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const typingDiv = document.getElementById('typingIndicator');
+            if (typingDiv) {
+                typingDiv.remove();
+                isTyping = false;
+            }
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === '') {
+                return;
+            }
+
+            addMessage(message, 'user');
+            userInput.value = ''; 
+
+            showTypingIndicator(); 
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No se encontró token de autenticación. Por favor, inicia sesión.');
+                hideTypingIndicator();
+                addMessage('Error: No estás autenticado. Por favor, inicia sesión para usar el chatbot.', 'bot');
+                return;
+            }
+
+            try {
+                const fullUrl = `${CHAT_API_URL}ask?question=${encodeURIComponent(message)}`;
+
+                const response = await fetch(fullUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        console.warn('Token inválido o expirado. Limpiando token y redirigiendo al login.');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('loggedInUser');
+                        hideTypingIndicator();
+                        addMessage('Tu sesión ha expirado o el token es inválido. Por favor, vuelve a iniciar sesión.', 'bot');
+                        window.location.href = LOGIN_PAGE_URL; // Redirigir al login
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                hideTypingIndicator(); 
+                addMessage(data.answer, 'bot'); 
+
+            } catch (error) {
+                console.error('Error al comunicarse con el chatbot:', error);
+                hideTypingIndicator(); 
+                addMessage('Lo siento, hubo un error al conectar con el bot. Inténtalo de nuevo más tarde.', 'bot');
+            }
+        }
+
+        
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('loggedInUser');
+            window.location.href = LOGIN_PAGE_URL;
+        }
+
+        
+        chatToggleButton.addEventListener('click', toggleChat);
+        closeChatButton.addEventListener('click', toggleChat); 
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        logoutButton.addEventListener('click', logout); 
+
+        document.addEventListener('DOMContentLoaded', () => {
+           
+            const loggedInUser = localStorage.getItem('loggedInUser');
+            if (loggedInUser) {
+                const welcomeMessage = document.querySelector('.text-center h1'); 
+                if (welcomeMessage) {
+                    welcomeMessage.textContent = `¡Hola, ${loggedInUser}!`; 
+                }
+                const subMessage = document.querySelector('.text-center p:first-of-type'); 
+                if (subMessage) {
+                    subMessage.textContent = `Bienvenido de nuevo a nuestro Mini Bot Conversacional.`; 
+                }
+            } else {
+                
+                 window.location.href = LOGIN_PAGE_URL;
+            }
+        });
+
+    </script>
+</body>
+</html>

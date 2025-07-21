@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css"> 
+</head>
+<body>
+
+    <div class="login-container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Iniciar Sesión</h1>
+        <form id="loginForm">
+            <input type="text" id="username" placeholder="Usuario" class="form-input" required>
+            <input type="password" id="password" placeholder="Contraseña" class="form-input" required>
+            <button type="submit" class="form-button">Entrar</button>
+            <p id="errorMessage" class="error-message hidden"></p>
+        </form>
+    </div>
+
+    <script>
+        const LOGIN_API_URL = 'http://localhost:8090/api/auth/login';
+        const INDEX_PAGE_URL = 'index.html';
+
+        const loginForm = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const errorMessage = document.getElementById('errorMessage');
+
+        loginForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); 
+
+            const username = usernameInput.value.trim(); 
+            const password = passwordInput.value.trim(); 
+
+            errorMessage.classList.add('hidden'); 
+
+            try {
+                const response = await fetch(LOGIN_API_URL, {
+                    method: 'POST', 
+                    headers: {
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({ username, password }) 
+                });
+
+                if (!response.ok) {
+
+                    const errorData = await response.json().catch(() => ({ message: 'Error desconocido en la respuesta del servidor.' }));
+                    throw new Error(errorData.message || `Error en la autenticación: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const token = data.token; 
+                
+                if (!token) throw new Error("Token no recibido desde el servidor.");
+
+                localStorage.setItem('token', token);
+                localStorage.setItem('loggedInUser', username);
+
+                console.log("token", token);
+
+                window.location.href = INDEX_PAGE_URL;
+
+            } catch (error) {
+                console.error('Error durante el inicio de sesión:', error);
+                errorMessage.textContent = error.message;
+                errorMessage.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
+
+

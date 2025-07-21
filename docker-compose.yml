@@ -1,0 +1,49 @@
+version: '3.8'
+services:
+  backend-auth:
+    build:
+      context: ./backend-auth
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    depends_on:
+      - backend-chat
+    environment:
+      # Las variables de entorno para la base de datos son cruciales para la conexión en la nube.
+      # Se recomienda encarecidamente NO poner contraseñas directamente aquí en producción.
+      # Usa un sistema de secretos o variables de entorno del host.
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@chatboot_medium?TNS_ADMIN=/opt/oracle/wallets/chatboot/
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: your_auth_db_password # Reemplaza con tu contraseña real o usa variables de entorno
+      FEIGN_CLIENT_CHATBOOT_REQUEST_URL: http://backend-chat:8091
+      APPLICATION_SECURITY_JWT_SECRET_KEY: McvbIKwpPaVhmkBFUdHDXzvFWeAzgaJ8XJr6cBsvNkPj9vUAWw7GzFMV6ZhHsI
+      APPLICATION_SECURITY_JWT_EXPIRATION: 86400000
+      APPLICATION_SECURITY_JWT_REFRESH_TOKEN_EXPIRATION: 604800000
+      PENDING_QUESTION: "Esta registrada la pregunta en espera de ser respondida"
+    volumes:
+      # Monta el directorio de la wallet de Oracle desde tu host al contenedor.
+      # Asegúrate de que './oracle/wallets/chatboot' en tu host contenga los archivos de la wallet (tnsnames.ora, sqlnet.ora, etc.)
+      - ./oracle/wallets/chatboot:/opt/oracle/wallets/chatboot
+
+  backend-chat:
+    build:
+      context: ./backend-chat
+      dockerfile: Dockerfile
+    ports:
+      - "8091:8091"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@chatboot_medium?TNS_ADMIN=/opt/oracle/wallets/chatboot/
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: your_chat_db_password # Reemplaza con tu contraseña real o usa variables de entorno
+    volumes:
+      - ./oracle/wallets/chatboot:/opt/oracle/wallets/chatboot
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    depends_on:
+      - backend-auth
+      - backend-chat
