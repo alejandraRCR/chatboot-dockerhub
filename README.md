@@ -6,7 +6,7 @@ Este proyecto integra un sistema de chatbot con microservicios de backend y una 
 
 ## 🐳 Despliegue y Orquestación con Docker
 
-La solución está completamente dockerizada para facilitar su despliegue y orquestación. Se han generado Dockerfiles específicos para cada componente, permitiendo construir imágenes eficientes para cada servicio.
+La solución se esta preparado para ser dockerizada para facilitar su despliegue y orquestación. Se han generado Dockerfiles específicos para cada componente, permitiendo construir imágenes eficientes para cada servicio.
 
 ### Componentes Dockerizados
 
